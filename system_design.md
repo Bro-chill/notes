@@ -1,4 +1,4 @@
-system_design
+# SYSTEM_DESIGN
 
 This comprehensive note summarizes the key concepts needed to master system design from foundations to production-ready applications across various domains including web, mobile, desktop, IoT, embedded systems, and distributed applications.
 
