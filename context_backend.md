@@ -24,58 +24,18 @@ Avoid building functionality on speculation. Implement features only when they a
 ## 🤖 Agentic Architecture Patterns
 
 ### Agent Design Principles
+- **Autonomy**: Independent decision-making within scope
+- **Reactivity**: Respond to environmental changes
+- **Proactivity**: Take initiative to achieve goals
+- **Social Ability**: Communicate and collaborate
+- **Statefulness**: Maintain context across interactions
 
-- **Autonomy**: Agents should make decisions independently within their scope
-- **Reactivity**: Agents respond to environmental changes and events
-- **Proactivity**: Agents take initiative to achieve goals
-- **Social Ability**: Agents can communicate and collaborate with other agents
-- **Statefulness**: Agents maintain context across interactions
-
-### Agent Communication Patterns
-
-```python
-# Event-driven communication
-class AgentEvent:
-    event_type: str
-    payload: dict
-    source_agent_id: str
-    timestamp: datetime
-
-# Message passing
-class AgentMessage:
-    sender_id: str
-    receiver_id: str
-    content: dict
-    metadata: dict
-```
-
-### State Management for Agents
-
-```python
-# State persistence patterns
-class AgentState:
-    """Base state for all agents"""
-    agent_id: str
-    current_task: Optional[Task]
-    memory: dict  # Short-term memory
-    knowledge_base: dict  # Long-term memory
-    goals: list[Goal]
-    
-# State transitions
-class StateTransition:
-    from_state: str
-    to_state: str
-    trigger: str
-    conditions: list[Callable]
-```
-
-### Agent Orchestration
-
-- **Supervisor Pattern**: Single agent coordinates multiple sub-agents
-- **Pipeline Pattern**: Sequential processing through multiple agents
+### Orchestration Patterns
+- **Supervisor**: Single agent coordinates sub-agents
+- **Pipeline**: Sequential processing
 - **Hub-and-Spoke**: Central orchestrator with specialized agents
-- **Peer-to-Peer**: Agents communicate directly without central control
-- **Hierarchical**: Multi-level agent organization
+- **Peer-to-Peer**: Direct agent communication
+- **Hierarchical**: Multi-level organization
 
 ## 🧱 Code Structure & Modularity
 
@@ -106,6 +66,10 @@ backend/
 │   ├── repositories/   # Data access patterns
 │   ├── migrations/     # DB migrations
 │   └── seeds/          # Seed data
+├── payments/           # Payment gateway integration
+│   ├── stripe/         # Stripe-specific implementation
+│   ├── webhooks/       # Payment webhook handlers
+│   └── schemas/        # Payment schemas
 ├── utils/              # Utility functions
 ├── config/             # Configuration management
 └── tests/              # Test suite
@@ -136,35 +100,18 @@ backend/
 
 ## 🧪 Testing Strategy
 
-### Test-Driven Development (TDD)
+### TDD: Write test first → Watch fail → Minimal code → Refactor → Repeat
 
-1. **Write the test first** - Define expected behavior before implementation
-2. **Watch it fail** - Ensure the test actually tests something
-3. **Write minimal code** - Just enough to make the test pass
-4. **Refactor** - Improve code while keeping tests green
-5. **Repeat** - One test at a time
+### Test Types
+- **Unit**: Individual functions/methods (pytest)
+- **Integration**: Component interactions, database
+- **Agent**: Behavior, decision-making, state transitions
+- **API**: Endpoints, validation, error handling
+- **E2E**: Complete workflows
 
-### Test Organization
-
-- **Unit tests**: Test individual functions/methods in isolation using `pytest`
-- **Integration tests**: Test component interactions, database operations
-- **Agent tests**: Test agent behavior, decision-making, and state transitions
-- **API tests**: Test endpoint responses, validation, error handling
-- **E2E tests**: Test complete workflows with real dependencies
-
-```python
-# Example: Agent unit test
-def test_agent_decision_making():
-    agent = MyAgent(config)
-    result = agent.decide(context)
-    assert result.action == "expected_action"
-    assert result.confidence > 0.8
-```
-
-### Test Coverage Goals
-- Aim for **80%+ code coverage**, but focus on critical paths
-- **100% coverage** for agent decision logic and state machines
-- Keep test files next to the code they test or in parallel `__tests__` directories
+### Coverage Goals
+- **80%+** overall, **100%** for agent decision logic
+- Keep test files next to code or in `__tests__/` directories
 
 ## 🗄️ Database Naming Standards
 
@@ -209,559 +156,181 @@ agent_config, task_metadata, error_details
 
 -- Arrays: {entity}_list or {entity}s
 tag_list, agent_ids, capabilities
+
+-- Payment-related fields
+payment_id, transaction_id, stripe_customer_id, stripe_subscription_id
+amount_cents, currency_code, payment_status, subscription_status
+```
+
+### Payment-Related Tables
+
+```sql
+-- Payments table
+payments.payment_id UUID PRIMARY KEY
+payments.user_id UUID REFERENCES users(user_id)
+payments.stripe_payment_intent_id VARCHAR
+payments.amount_cents INTEGER
+payments.currency_code VARCHAR(3)
+payments.payment_status VARCHAR
+payments.created_at TIMESTAMP
+payments.updated_at TIMESTAMP
+
+-- Subscriptions table
+subscriptions.subscription_id UUID PRIMARY KEY
+subscriptions.user_id UUID REFERENCES users(user_id)
+subscriptions.stripe_subscription_id VARCHAR
+subscriptions.stripe_customer_id VARCHAR
+subscriptions.plan_id UUID REFERENCES plans(plan_id)
+subscriptions.subscription_status VARCHAR
+subscriptions.current_period_start TIMESTAMP
+subscriptions.current_period_end TIMESTAMP
+subscriptions.cancel_at TIMESTAMP
+subscriptions.created_at TIMESTAMP
+subscriptions.updated_at TIMESTAMP
 ```
 
 ## 🌐 API Route Standards
 
-### RESTful API Patterns (FastAPI)
-
+### RESTful Patterns (FastAPI)
 ```python
-# ✅ STANDARDIZED: FastAPI with consistent parameter naming
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-
-app = FastAPI(
-    title="Agentic Application API",
-    description="API for managing agents, tasks, and conversations",
-    version="1.0.0",
-)
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Resource routes (CRUD operations)
-@app.get("/api/v1/agents")                      # GET all agents
-@app.post("/api/v1/agents")                     # CREATE new agent
-@app.get("/api/v1/agents/{agent_id}")           # GET specific agent
-@app.put("/api/v1/agents/{agent_id}")           # UPDATE agent
-@app.patch("/api/v1/agents/{agent_id}")         # PARTIAL UPDATE agent
-@app.delete("/api/v1/agents/{agent_id}")        # DELETE agent
-
-# Sub-resources
-@app.get("/api/v1/agents/{agent_id}/tasks")     # GET agent tasks
-@app.post("/api/v1/agents/{agent_id}/tasks")    # CREATE task for agent
-
-# Actions (non-CRUD operations)
-@app.post("/api/v1/agents/{agent_id}/execute")  # Execute agent action
-@app.post("/api/v1/agents/{agent_id}/pause")    # Pause agent
-@app.post("/api/v1/agents/{agent_id}/resume")   # Resume agent
-
-# WebSocket for real-time communication
-@app.websocket("/ws/agents/{agent_id}")
-async def agent_websocket(websocket: WebSocket, agent_id: str):
-    await websocket.accept()
-    # Handle real-time agent communication
+# CRUD: GET/POST/PUT/PATCH/DELETE /api/v1/{resource}
+# Sub-resources: /api/v1/{resource}/{id}/{sub-resource}
+# Actions: POST /api/v1/{resource}/{id}/{action}
+# WebSocket: /ws/{resource}/{id}
+# Payments: /api/v1/payments/* and /api/v1/subscriptions/*
+# Webhooks: /api/v1/webhooks/stripe
 ```
 
-### GraphQL API Patterns (Optional)
-
+### GraphQL (Optional for complex queries)
 ```python
-# For complex data fetching needs
 import strawberry
 from strawberry.fastapi import GraphQLRouter
-
-@strawberry.type
-class Agent:
-    agent_id: str
-    name: str
-    status: str
-    tasks: list["Task"]
-
-@strawberry.type
-class Query:
-    @strawberry.field
-    def agent(self, agent_id: str) -> Agent:
-        return get_agent(agent_id)
-
-schema = strawberry.Schema(query=Query)
-graphql_app = GraphQLRouter(schema)
-app.include_router(graphql_app, prefix="/graphql")
+# Use for complex data fetching needs
 ```
 
 ## 📝 Documentation Standards
 
-### Code Documentation
+- **Modules**: Docstring explaining purpose
+- **Functions**: Complete docstrings (Google/NumPy style) with Args, Returns, Raises
+- **Complex logic**: Inline comments with `# Reason:` prefix
+- **Type hints**: All parameters and return values
 
-- Every module should have a docstring explaining its purpose
-- Public functions must have complete docstrings (Google or NumPy style)
-- Complex logic should have inline comments with `# Reason:` prefix
-- Type hints for all function parameters and return values
+## 💳 Payment Gateway Integration (Stripe)
 
-```python
-def process_agent_task(
-    agent_id: str,
-    task_data: dict,
-    timeout: int = 300
-) -> TaskResult:
-    """
-    Process a task for a specific agent.
-    
-    Args:
-        agent_id: Unique identifier for the agent
-        task_data: Dictionary containing task parameters
-        timeout: Maximum execution time in seconds
-        
-    Returns:
-        TaskResult object with execution details
-        
-    Raises:
-        AgentNotFoundError: If agent_id doesn't exist
-        TaskTimeoutError: If execution exceeds timeout
-    """
-    pass
-```
+### Structure
+- **Client**: `payments/stripe/client.py` - Wrapper for Stripe API
+- **Schemas**: `payments/schemas.py` - Pydantic models (PaymentStatus, SubscriptionStatus)
+- **Routes**: `api/routes/payments.py` - Payment/subscription endpoints
+- **Webhooks**: `api/routes/webhooks.py` - Handle Stripe events
+- **Service**: `core/services/payment_service.py` - Business logic
+
+### Key Operations
+- Create payment intent, customer, subscription
+- Handle webhooks with signature verification
+- Record transactions in database
+- Monitor with Prometheus metrics
+
+### Security Best Practices
+- Never store card details (PCI compliance)
+- Always verify webhook signatures
+- Use idempotency keys
+- Validate amounts server-side
+- Use test mode in development
 
 ## 🔄 Agent Memory & Context Management
 
 ### Memory Types
-
-```python
-# Short-term memory (conversation context)
-class ShortTermMemory:
-    max_messages: int = 10
-    messages: list[Message]
-    
-    def add_message(self, message: Message) -> None:
-        self.messages.append(message)
-        if len(self.messages) > self.max_messages:
-            self.messages.pop(0)
-
-# Long-term memory (persistent knowledge)
-class LongTermMemory:
-    vector_store: VectorStore
-    
-    def store(self, content: str, metadata: dict) -> None:
-        embedding = self.embed(content)
-        self.vector_store.add(embedding, content, metadata)
-    
-    def retrieve(self, query: str, k: int = 5) -> list[Document]:
-        return self.vector_store.similarity_search(query, k=k)
-
-# Working memory (current task context)
-class WorkingMemory:
-    current_goal: Goal
-    sub_goals: list[Goal]
-    context_variables: dict
-    tool_outputs: dict
-```
+- **Short-term**: Recent conversation (e.g., last 10 messages)
+- **Long-term**: Persistent knowledge (vector store)
+- **Working**: Current task context, goals, variables
 
 ### Context Window Management
-
-```python
-class ContextManager:
-    """Manage token limits and context pruning"""
-    
-    def __init__(self, max_tokens: int = 4000):
-        self.max_tokens = max_tokens
-    
-    def optimize_context(
-        self,
-        system_prompt: str,
-        conversation: list[Message],
-        documents: list[Document]
-    ) -> tuple[str, list[Message], list[Document]]:
-        """
-        Prioritize and prune context to fit within token limits
-        
-        Priority order:
-        1. System prompt (always included)
-        2. Recent messages (last N)
-        3. Relevant documents (top K by relevance)
-        4. Older messages (summarized if needed)
-        """
-        pass
-```
+- Prioritize: System prompt → Recent messages → Relevant docs → Summarized history
+- Implement token limits and pruning
+- Use vector similarity for relevant document retrieval
 
 ## 🛡️ Security Best Practices
 
-### Backend Security
+### General
+- Never commit secrets (use env vars, AWS Secrets Manager, Vault)
+- Validate all input (Pydantic models)
+- Parameterized queries (prevent SQL injection)
+- Rate limiting (slowapi)
+- HTTPS, proper auth (JWT, OAuth2, API keys)
+- Audit logging
 
-- **Never commit secrets** - use environment variables and secret management tools (AWS Secrets Manager, Vault)
-- **Validate all user input** with Pydantic models and custom validators
-- **Use parameterized queries** for all database operations (prevent SQL injection)
-- **Implement rate limiting** for all API endpoints (e.g., `slowapi`)
-- **Use HTTPS** for all external communications
-- **Implement proper authentication and authorization** (JWT, OAuth2, API keys)
-- **Sanitize LLM inputs/outputs** - prevent prompt injection and data leakage
-- **Agent sandboxing** - limit agent capabilities and resource access
-- **Audit logging** - track all agent actions and decisions
-
-### Agent-Specific Security
-
-```python
-# Limit agent tool access
-class AgentSandbox:
-    allowed_tools: list[str]
-    max_execution_time: int
-    max_memory_mb: int
-    allowed_domains: list[str]  # For web access
-    
-# Input validation for agents
-class AgentInputValidator:
-    def validate_prompt(self, prompt: str) -> bool:
-        # Check for prompt injection patterns
-        # Limit prompt length
-        # Filter sensitive keywords
-        pass
-```
+### Agent-Specific
+- Sanitize LLM inputs/outputs (prevent prompt injection)
+- Agent sandboxing (limit tools, execution time, memory, domains)
+- Input validation (check patterns, length, sensitive keywords)
 
 ## ⚡ Performance Optimization
 
-### Database Optimization
-- Use **connection pooling** for database connections
-- Add **indexes** on frequently queried columns
-- Use **select_related** and **prefetch_related** to avoid N+1 queries
-- Implement **pagination** for large datasets
-- Use **database query caching** for expensive queries
+### Database
+- Connection pooling, indexes on frequent queries
+- Avoid N+1 queries (use joins/prefetch)
+- Pagination, query caching
 
-```python
-# Query optimization example
-async def get_agent_with_tasks(agent_id: str):
-    # ❌ Bad: N+1 query problem
-    agent = await db.get_agent(agent_id)
-    tasks = await db.get_tasks_by_agent(agent_id)  # Separate query
-    
-    # ✅ Good: Single query with join
-    agent = await db.get_agent_with_tasks(agent_id)
-```
+### API
+- async/await for I/O
+- Response caching (Redis)
+- Background tasks for long operations
+- Request/response compression (gzip)
+- APM monitoring (DataDog, New Relic)
 
-### API Performance
-- Use **async/await** for I/O operations
-- Implement **response caching** with Redis
-- Use **background tasks** for long-running operations
-- Implement **request/response compression** (gzip)
-- Monitor with **APM tools** (DataDog, New Relic)
-
-```python
-from fastapi import BackgroundTasks
-
-@app.post("/api/v1/agents/{agent_id}/execute")
-async def execute_agent(
-    agent_id: str,
-    task_data: dict,
-    background_tasks: BackgroundTasks
-):
-    # Return immediately, process in background
-    background_tasks.add_task(process_agent_task, agent_id, task_data)
-    return {"status": "queued", "task_id": task_id}
-```
-
-### Agent Performance
-- **Cache LLM responses** for identical prompts
-- Use **streaming responses** for long outputs
-- Implement **timeout mechanisms** for agent operations
-- **Batch API calls** when possible
-- Use **cheaper models** for simple tasks
+### Agents
+- Cache LLM responses
+- Streaming for long outputs
+- Timeout mechanisms
+- Batch API calls
+- Use cheaper models for simple tasks
 
 ## 🔧 Error Handling & Resilience
 
 ### Custom Exception Hierarchy
+- Base: `ApplicationError(message, code, details)`
+- Specific: `AgentError`, `AgentTimeoutError`, etc.
+- Global handler: Return JSON with error code, message, details
 
-```python
-# Custom exception hierarchy
-class ApplicationError(Exception):
-    """Base exception for application errors"""
-    def __init__(self, message: str, code: str, details: dict = None):
-        self.message = message
-        self.code = code
-        self.details = details or {}
-
-class AgentError(ApplicationError):
-    """Agent-specific errors"""
-    pass
-
-class AgentTimeoutError(AgentError):
-    """Agent execution timeout"""
-    pass
-
-# Global error handler
-@app.exception_handler(ApplicationError)
-async def application_error_handler(request: Request, exc: ApplicationError):
-    return JSONResponse(
-        status_code=400,
-        content={
-            "error": exc.code,
-            "message": exc.message,
-            "details": exc.details
-        }
-    )
-```
-
-### Retry Mechanism
-
-```python
-# Retry mechanism with exponential backoff
-from tenacity import retry, stop_after_attempt, wait_exponential
-
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=4, max=10)
-)
-async def call_external_api(url: str):
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url)
-        response.raise_for_status()
-        return response.json()
-```
-
-### Circuit Breaker Pattern
-
-```python
-class CircuitBreaker:
-    """Prevent cascading failures"""
-    def __init__(self, failure_threshold: int = 5, timeout: int = 60):
-        self.failure_threshold = failure_threshold
-        self.timeout = timeout
-        self.failures = 0
-        self.last_failure_time = None
-        self.state = "closed"  # closed, open, half-open
-    
-    async def call(self, func, *args, **kwargs):
-        if self.state == "open":
-            if time.time() - self.last_failure_time > self.timeout:
-                self.state = "half-open"
-            else:
-                raise CircuitBreakerOpen()
-        
-        try:
-            result = await func(*args, **kwargs)
-            self.on_success()
-            return result
-        except Exception as e:
-            self.on_failure()
-            raise
-```
+### Resilience Patterns
+- **Retry**: Exponential backoff with tenacity (3 attempts, 4-10s wait)
+- **Circuit Breaker**: Prevent cascading failures (threshold, timeout, states: closed/open/half-open)
 
 ## 🚀 Deployment & DevOps
 
-### Environment Configuration
+### Environment Configuration (Pydantic Settings)
+- App: name, debug
+- Database: url, pool_size
+- API Keys: OpenAI, Anthropic
+- Stripe: api_key, webhook_secret, publishable_key
+- Redis: url
+- Security: secret_key, token_expire_minutes
 
-```python
-# config/settings.py
-from pydantic_settings import BaseSettings
-
-class Settings(BaseSettings):
-    # Application
-    app_name: str = "Agentic App"
-    debug: bool = False
-    
-    # Database
-    database_url: str
-    db_pool_size: int = 10
-    
-    # API Keys
-    openai_api_key: str
-    anthropic_api_key: str | None = None
-    
-    # Redis
-    redis_url: str | None = None
-    
-    # Security
-    secret_key: str
-    access_token_expire_minutes: int = 30
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-
-settings = Settings()
-```
-
-### Docker Configuration
-
-```dockerfile
-# Backend Dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application
-COPY . .
-
-# Run as non-root user
-RUN useradd -m appuser && chown -R appuser:appuser /app
-USER appuser
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-### Docker Compose
-
-```yaml
-version: '3.8'
-
-services:
-  backend:
-    build: ./backend
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://user:pass@db:5432/dbname
-      - REDIS_URL=redis://redis:6379
-    depends_on:
-      - db
-      - redis
-    volumes:
-      - ./backend:/app
-    
-  db:
-    image: postgres:15
-    environment:
-      - POSTGRES_DB=dbname
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=pass
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-
-volumes:
-  postgres_data:
-  redis_data:
-```
+### Docker
+- **Dockerfile**: Python 3.11-slim, non-root user, uvicorn
+- **Compose**: Backend, PostgreSQL 15, Redis 7
+- Use volumes for data persistence
 
 ## 📊 Monitoring & Observability
 
-### Logging Standards
+### Structured Logging (structlog)
+- Levels: debug, info, warning, error, critical
+- Include context: agent_id, task_type, user_id
 
-```python
-# Structured logging
-import structlog
-
-logger = structlog.get_logger()
-
-# Log with context
-logger.info(
-    "agent_task_started",
-    agent_id=agent_id,
-    task_type=task_type,
-    user_id=user_id
-)
-
-# Log levels
-logger.debug("Detailed diagnostic information")
-logger.info("General informational messages")
-logger.warning("Warning messages for potentially harmful situations")
-logger.error("Error messages", exc_info=True)
-logger.critical("Critical issues requiring immediate attention")
-```
-
-### Metrics & Tracing
-
-```python
-# Prometheus metrics
-from prometheus_client import Counter, Histogram, Gauge
-
-agent_requests = Counter(
-    'agent_requests_total',
-    'Total agent requests',
-    ['agent_type', 'status']
-)
-
-agent_duration = Histogram(
-    'agent_duration_seconds',
-    'Agent execution duration',
-    ['agent_type']
-)
-
-active_agents = Gauge(
-    'active_agents',
-    'Number of currently active agents'
-)
-
-# Usage
-with agent_duration.labels(agent_type='research').time():
-    result = await agent.execute()
-    agent_requests.labels(agent_type='research', status='success').inc()
-```
+### Metrics (Prometheus)
+- **Counter**: agent_requests_total, payment_attempts_total
+- **Histogram**: agent_duration_seconds, payment_amount_cents
+- **Gauge**: active_agents
 
 ### Health Checks
-
-```python
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "version": "1.0.0"
-    }
-
-@app.get("/health/ready")
-async def readiness_check():
-    # Check dependencies
-    db_healthy = await check_database()
-    redis_healthy = await check_redis()
-    
-    if not (db_healthy and redis_healthy):
-        raise HTTPException(status_code=503, detail="Service not ready")
-    
-    return {"status": "ready"}
-```
+- `/health`: Basic health status
+- `/health/ready`: Check dependencies (DB, Redis)
 
 ## 🧩 Common Patterns
 
-### Repository Pattern
-```python
-class AgentRepository:
-    def __init__(self, db: Database):
-        self.db = db
-    
-    async def get_by_id(self, agent_id: str) -> Agent | None:
-        return await self.db.fetch_one(
-            "SELECT * FROM agents WHERE agent_id = :id",
-            {"id": agent_id}
-        )
-    
-    async def save(self, agent: Agent) -> Agent:
-        # Encapsulate data access logic
-        pass
-```
-
-### Service Layer Pattern
-```python
-class AgentService:
-    def __init__(self, repo: AgentRepository, llm: LLM):
-        self.repo = repo
-        self.llm = llm
-    
-    async def execute_task(self, agent_id: str, task: Task) -> Result:
-        agent = await self.repo.get_by_id(agent_id)
-        # Business logic here
-        result = await agent.process(task, self.llm)
-        await self.repo.update_metrics(agent_id, result.metrics)
-        return result
-```
-
-### Factory Pattern for Agents
-```python
-class AgentFactory:
-    @staticmethod
-    def create_agent(agent_type: str, config: dict) -> BaseAgent:
-        agents = {
-            "research": ResearchAgent,
-            "analysis": AnalysisAgent,
-            "coding": CodingAgent
-        }
-        agent_class = agents.get(agent_type)
-        if not agent_class:
-            raise ValueError(f"Unknown agent type: {agent_type}")
-        return agent_class(config)
-```
+- **Repository**: Encapsulate data access (get_by_id, save, update)
+- **Service Layer**: Business logic using repositories and external services
+- **Factory**: Create agents based on type (research, analysis, coding)
 
 ## 📚 Useful Resources
 
@@ -783,6 +352,12 @@ class AgentFactory:
 - **Weaviate**: https://weaviate.io/developers/weaviate
 - **Qdrant**: https://qdrant.tech/documentation/
 - **Chroma**: https://docs.trychroma.com/
+
+### Payment Gateway
+- **Stripe API**: https://stripe.com/docs/api
+- **Stripe Python SDK**: https://stripe.com/docs/api/python
+- **Stripe Webhooks**: https://stripe.com/docs/webhooks
+- **Stripe Testing**: https://stripe.com/docs/testing
 
 ### Best Practices
 - **PEP 8** (Python): https://pep8.org/

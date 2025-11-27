@@ -55,9 +55,10 @@ Avoid building functionality on speculation. Implement features only when needed
 ### Backend Stack
 - **Language**: Python 3.11+
 - **Framework**: FastAPI
-- **Agent Frameworks**: LangChain, LangGraph, AutoGen, CrewAI
-- **Database**: PostgreSQL
+- **Agent Frameworks**: LangChain, LangGraph
+- **Database**: Relational (Supabase/PostgreSQL), Non-Relational (MongoDB)
 - **Cache**: Redis
+- **Payment Gateway**: Stripe
 - **Testing**: Pytest
 - **Validation**: Pydantic
 
@@ -65,8 +66,8 @@ See [context_backend.md](./context_backend.md) for complete backend guidelines.
 
 ### Frontend Stack
 - **Language**: TypeScript
-- **Framework**: React 18+
-- **Build Tool**: Vite or Next.js
+- **Framework**: React Router v7
+- **Build Tool**: Vite
 - **State Management**: React Query + Zustand
 - **UI Library**: shadcn/ui, Tailwind CSS
 - **Testing**: Vitest, Testing Library, Playwright
@@ -190,11 +191,11 @@ const useAgent = (agentId: string) => {
 ```bash
 # Setup
 python -m venv venv
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+source venv\Scripts\activate # or venv/bin/activate on mac
 pip install -r requirements.txt
 
 # Run
-uvicorn main:app --reload
+uvicorn api.main:app
 
 # Test
 pytest
@@ -303,6 +304,7 @@ See [context_frontend.md](./context_frontend.md#-useful-resources)
 - Building API endpoints
 - Creating agent logic
 - Database operations
+- Payment Gateway
 - Backend testing
 - Server deployment
 
